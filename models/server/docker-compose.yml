@@ -1,0 +1,20 @@
+version: "3.6"
+services:
+  gan-train:
+    image: test
+    command: bash -c "python  /app/webstreaming.py --ip=0.0.0.0 --port=8000"
+    volumes:
+      - "./:/app"
+    ports:
+      - "8000:8000"
+    networks:
+      - default
+    devices:
+      - "/dev/video0:/dev/video0"
+    environment:
+      FLASK_ENV: development
+      GALLERY_ROOT_DIR: "/app/images"
+networks:
+  default:
+    external:
+      name: my-network

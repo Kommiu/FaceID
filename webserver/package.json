@@ -6,15 +6,21 @@
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.3.2",
     "@testing-library/user-event": "^7.1.2",
+    "bootstrap": "^4.4.1",
     "react": "^16.13.1",
+    "react-bootstrap": "^1.0.1",
     "react-dom": "^16.13.1",
-    "react-scripts": "3.4.1"
+    "react-dropdown": "^1.7.0",
+    "react-scripts": "3.4.1",
+    "semantic-ui-react": "^0.88.2",
+    "superagent": "^5.2.2"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "../node_modules/.bin/react-scripts start",
+    "start-api": "cd api && flask run -h 0.0.0.0 --no-debugger",
+    "build": "../node_modules/.bin/react-scripts build",
+    "test": "../node_modules/.bin/react-scripts test",
+    "eject": "../node_modules/.bin/react-scripts eject"
   },
   "eslintConfig": {
     "extends": "react-app"
@@ -30,5 +36,6 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  }
+  },
+  "proxy": "http://backend:5000"
 }

@@ -1,0 +1,10 @@
+key,value
+batch_size,8
+image_shape,"(3, 64, 64)"
+gen_coef,64
+dis_coef,64
+num_workers,2
+lr,0.0002
+b1,0.5
+b2,0.999
+latent_dim,100

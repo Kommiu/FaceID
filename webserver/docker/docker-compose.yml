@@ -1,0 +1,31 @@
+version: "3.8"
+services:
+  frontend:
+    image: test
+    command: yarn start
+    volumes:
+      - "../:/home/kommiu/app"
+    ports:
+      - "3000:3000"
+    stdin_open: true
+    networks:
+      - default
+  backend:
+    image: test
+    command: flask run -h 0.0.0.0 --no-debugger
+    working_dir: /home/kommiu/app/api
+    volumes:
+      - "../api:/home/kommiu/app/api"
+    ports:
+      - "5000:5000"
+    networks:
+      - default
+  redis:
+    image: "redis:alpine"
+    networks:
+      - default
+
+networks:
+  default:
+    external:
+      name: my-network

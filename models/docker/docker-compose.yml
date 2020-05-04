@@ -1,0 +1,18 @@
+version: "2.3"
+services:
+  gan-train:
+    image: test
+    command: bash -c "python  /app/main.py && tensorboard --logdir /app/lightning_logs"
+    volumes:
+      - "../GAN:/app"
+      - "../data:/data"
+    ports:
+      - "8008:8008"
+    networks:
+      - default
+    runtime: nvidia
+
+networks:
+  default:
+    external:
+      name: my-network
