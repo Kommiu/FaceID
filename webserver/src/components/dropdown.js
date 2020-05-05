@@ -4,44 +4,31 @@ import Dropdown from 'react-bootstrap/Dropdown'
 import DropdownToggle from "react-bootstrap/DropdownToggle";
 import DropdownMenu from "react-bootstrap/DropdownMenu";
 import {DropdownItem} from "react-bootstrap";
+import Button from "react-bootstrap/Button";
+import Col from "react-bootstrap/Col";
+import Row from 'react-bootstrap/Row';
+
+function NameDropdown(props) {
+    const identities = props.identities;
+    return (<Dropdown>
+        <Dropdown.Toggle variant="success" id="dropdown-basic">
+            Dropdown Button
+        </Dropdown.Toggle>
+        <DropdownMenu>
+            {identities.map(option => (
+                <DropdownItem as='button' onClick={props.onClick}>
+                    <Row>
+                       <Col><Button block>{option}</Button></Col>
+                    <Col><Button value={option} onClick={props.onXClick}>X</Button></Col>
+                    </Row>
 
 
-class NameDropdown extends Component{
-    constructor(props) {
-        super(props);
-        this.toggle = this.toggle.bind(this);
-        this.select = this.select.bind(this);
-        this.state = {
-            dropdownOpen: false,
-            value : "Home",
-            options: props.options,
-        };
-    }
-    toggle(){
-        this.setState({
-            dropdownOpen: !this.state.dropdownOpen,
-        });
-    }
-    select(event){
-        this.setState({
-            dropdownOpen: !this.state.dropdownOpen,
-            value: event.target.innerText,
-        });
-    }
-    render(){
-        return <Dropdown isOpen={this.state.dropdownOpen} toglle={this.toggle}>
-            <DropdownToggle>
-                {this.state.value}
-            </DropdownToggle>
-            <DropdownMenu>
-                {this.state.options.map(option => (
-                    <DropdownItem onClick={this.select}>
-                        {option}
-                    </DropdownItem>
-                ))}
-            </DropdownMenu>
-        </Dropdown>
-    }
+                </DropdownItem>
+            ))}
+        </DropdownMenu>
+    </Dropdown>
+    );
 }
+
 
 export default NameDropdown;

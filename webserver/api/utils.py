@@ -56,3 +56,12 @@ def align_image(image, mtcnn):
 
     return faces, boxes
 
+
+def populate_redis(r, data_path):
+    with r.pipeline() as pipe:
+        for dir in data_path.iterdir():
+            r.sadd('identities', dir.stem)
+            for file in dir.iterdir():
+                r.sadd(dir.stem, file.as_posix())
+
+        pipe.execute()

@@ -10,9 +10,10 @@ from io import BytesIO
 from facenet_pytorch import InceptionResnetV1, MTCNN
 import torch
 # dimension = 500
-from .utils import align_image, draw_boxes
+from .utils import align_image, draw_boxes, populate_redis
 from flask import send_file, jsonify
 from io import BytesIO
+import shutil
 
 data_path = Path('/home/kommiu/app/data')
 
@@ -32,9 +33,10 @@ r = redis.StrictRedis(
     charset='utf-8',
     decode_responses=True,
 )
-
+populate_redis(r, data_path)
 redis_storage = RedisStorage(r)
-r.sadd('persons', 'Matt')
+r.sadd('identities', 'Matt')
+r.sadd('identities', 'Anna')
 
 # Get hash config from redis
 config = redis_storage.load_hash_configuration('MyHash')
@@ -68,7 +70,8 @@ def index():
 
 @app.route('/api/identities')
 def get_person_list():
-    persons = ['Anna', 'Vanya']#r.smembers('persons')
+    persons = r.smembers('identities')
+    app.logger.info(persons)
     return {'identities': list(persons)}
 
 
@@ -97,22 +100,29 @@ def upload_image():
     engine.store_vector(embedding.reshape(dimension, -1), 1)
     im_path = Path(data_path, filename)
     boxed_image.save(im_path, 'JPEG')
-    return serve_pil_image(boxed_image) #send_file(im_path.with_suffix('.jpg'), mimetype='image/gif')
+    return serve_pil_image(boxed_image)
 
 
-# @app.route('/add_person')
-# def add_person(name):
-#     if r.sismember('persons', name):
-#         return False
-#     else:
-#         r.sadd('persons', name)
-#         r.hset(name, 'image', None)
-#
-# @app.route('/add_image')
-# def add_image():
-#     name = request.args['name']
-#     file = request.files['file']
-#     filename = secure_filename(file.filename)
-#     if r.sismember('persons', name):
-#         pass
+@app.route('/api/add_identity', methods=['POST'])
+def add_identity():
+    name = request.json['identity']
+    app.logger.info(name)
+    if r.sismember('identities', name):
+        return 'already in the gallery'
+    else:
+        r.sadd('identities', name)
+        Path(data_path, name).mkdir(exist_ok=True)
+        return 'OK'
 
+@app.route('/api/delete_identity', methods=['POST'])
+def delete_identity():
+    name = request.json['identity']
+    app.logger.info(f'{name} identity')
+    if r.sismember('identities', name):
+        with r.pipeline() as pipe:
+            r.srem('identities', name)
+            r.delete(name)
+            pipe.execute()
+    path = Path(data_path, name)
+    shutil.rmtree(path)
+    return 'ok'

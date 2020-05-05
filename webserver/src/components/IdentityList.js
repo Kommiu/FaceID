@@ -1,5 +1,6 @@
-import React, {Component} from 'react';
+import React, {useState} from 'react';
 import Button from 'react-bootstrap/Button';
+import Form from 'react-bootstrap/Form';
 
 function Identity(props){
     return <Button
@@ -25,4 +26,15 @@ function IdentityList(props){
     );
 }
 
-export default IdentityList;
+function IdentityForm(props){
+    const [identity, setIdentity] = useState('');
+    return <Form>
+        <Form.Label>New identity </Form.Label>
+        <Form.Control as='textarea' onChange={(event)=>setIdentity(event.target.value)}></Form.Control>
+        <Button variant="primary" type="submit" onClick={props.onClick} value={identity}>
+            Submit
+        </Button>
+    </Form>
+}
+
+export {IdentityList, IdentityForm};
