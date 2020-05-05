@@ -1,13 +1,16 @@
 from pathlib import Path
 from flask import Flask, request
 import redis
+from werkzeug.utils import secure_filename
 from nearpy import Engine
 from nearpy.hashes import RandomBinaryProjections
 from nearpy.storage import RedisStorage
+from PIL import Image
+from io import BytesIO
 
 # dimension = 500
 
-
+data_path = Path('/data')
 
 r = redis.StrictRedis(
     host='redis',
@@ -43,10 +46,21 @@ app = Flask(__name__)
 def index():
     return "Hello, World!"
 
-@app.route('/persons')
+@app.route('/api/identities')
 def get_person_list():
     persons = ['Anna', 'Vanya']#r.smembers('persons')
-    return {'names': list(persons)}
+    return {'identities': list(persons)}
+
+
+@app.route('/api/upload_image', methods=['POST'])
+def upload_image():
+    file = request.files['file']
+    filename = secure_filename(file.filename)
+
+    im = Image.open(BytesIO(file.read()))
+    im.save(Path(data_path, filename), 'JPEG')
+    return 'FUQ'
+
 
 # @app.route('/add_person')
 # def add_person(name):

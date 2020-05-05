@@ -18,7 +18,7 @@ class File_upload extends React.Component {
     data.append('file', this.uploadInput.files[0]);
     data.append('filename', this.fileName.value);
 
-    fetch('http://localhost:8000/upload', {
+    fetch('/api/upload_image', {
       method: 'POST',
       body: data,
     }).then((response) => {
