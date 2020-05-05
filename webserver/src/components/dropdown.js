@@ -29,13 +29,12 @@ class NameDropdown extends Component{
         });
     }
     render(){
-        const options = this.state.options;
         return <Dropdown isOpen={this.state.dropdownOpen} toglle={this.toggle}>
             <DropdownToggle>
                 {this.state.value}
             </DropdownToggle>
             <DropdownMenu>
-                {options.map(option => (
+                {this.state.options.map(option => (
                     <DropdownItem onClick={this.select}>
                         {option}
                     </DropdownItem>

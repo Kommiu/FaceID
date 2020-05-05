@@ -6,6 +6,7 @@ function Identity(props){
         variant='primary'
         onClick={props.onClick}
         block
+        value={props.name}
     >
         {props.name}
     </Button>

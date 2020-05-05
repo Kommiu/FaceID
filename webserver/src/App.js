@@ -38,10 +38,11 @@ class App extends Component{
         {/*  <img src={logo} className="App-logo" alt="logo" />*/}
         {/*</header>*/}
         <Container>
+            <div>{currentIdentity}</div>
             <Row>
                 <Col> <IdentityList identities={identities} onClick={this.handleClick}/> </Col>
-                <Col> {currentIdentity} </Col>
-                <Col><FileUpload/></Col>
+                <Col> <NameDropdown options={identities}/> </Col>
+                <Col><FileUpload identity={currentIdentity}/></Col>
             </Row>
         </Container>
         </div>
