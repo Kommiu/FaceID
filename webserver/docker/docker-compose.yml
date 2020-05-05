@@ -16,6 +16,7 @@ services:
     working_dir: /home/kommiu/app/api
     volumes:
       - "../api:/home/kommiu/app/api"
+      - "../data:/home/kommiu/app/data"
     ports:
       - "5000:5000"
     networks:
