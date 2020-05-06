@@ -1,4 +1,5 @@
 from pathlib import Path
+import numpy as np
 from flask import Flask, request
 import redis
 from werkzeug.utils import secure_filename
@@ -9,9 +10,12 @@ from PIL import Image
 from io import BytesIO
 from facenet_pytorch import InceptionResnetV1, MTCNN
 import torch
+import torchvision.transforms as transforms
 # dimension = 500
 from .utils import align_image, draw_boxes, populate_redis
-from flask import send_file, jsonify
+
+from .discriminator import Discriminator
+from flask import send_file, jsonify, send_from_directory
 from io import BytesIO
 import shutil
 
@@ -25,6 +29,17 @@ mtcnn = MTCNN(
 )
 resnet = InceptionResnetV1(pretrained='casia-webface').eval().to(device)
 
+discriminator = Discriminator((3, 64, 64), 64)
+discriminator.load_state_dict(torch.load('./discriminator.ckp'))
+discriminator = discriminator.eval().to(device)
+transform = transforms.Compose([
+    transforms.ToPILImage(),
+    transforms.Resize(64),
+    transforms.CenterCrop(64),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+])
+
 dimension = 512
 
 r = redis.StrictRedis(
@@ -33,10 +48,9 @@ r = redis.StrictRedis(
     charset='utf-8',
     decode_responses=True,
 )
+r.flushdb()
 populate_redis(r, data_path)
 redis_storage = RedisStorage(r)
-r.sadd('identities', 'Matt')
-r.sadd('identities', 'Anna')
 
 # Get hash config from redis
 config = redis_storage.load_hash_configuration('MyHash')
@@ -80,8 +94,8 @@ def upload_image():
     global mtcnn, resnet, engine
     file = request.files['file']
     filename = secure_filename(file.filename)
-
-    app.logger.info('got image')
+    current_id = request.form['current_id']
+    app.logger.info(current_id)
     im = Image.open(BytesIO(file.read()))
     app.logger.info(f'image size: {im.size}')
     faces, boxes = align_image(im, mtcnn)
@@ -91,22 +105,29 @@ def upload_image():
 
     face = faces[0]
     box = boxes[0]
-    app.logger.info(face.shape)
+
+    face2disc = transform(face).unsqueeze(dim=0)
+
     with torch.no_grad():
-        embedding = resnet(face.unsqueeze(dim=0)).detach().cpu().numpy()
+        score = discriminator(face2disc).item()
+    app.logger.info('Discriminator score:', score)
+    if score >= 0.8:
+        with torch.no_grad():
+            embedding = resnet(face.unsqueeze(dim=0)).detach().cpu().numpy()
+        boxed_image = draw_boxes(im, [box])
 
-    boxed_image = draw_boxes(im, [box])
-
-    engine.store_vector(embedding.reshape(dimension, -1), 1)
-    im_path = Path(data_path, filename)
-    boxed_image.save(im_path, 'JPEG')
+        engine.store_vector(embedding.reshape(dimension, -1), 1)
+        im_path = Path(data_path, current_id, filename).with_suffix('.jpeg')
+        r.sadd(current_id, im_path.name)
+        boxed_image.save(im_path)
+    else:
+        boxed_image = draw_boxes(im, [box], (255, 0, 0))
     return serve_pil_image(boxed_image)
 
 
 @app.route('/api/add_identity', methods=['POST'])
 def add_identity():
     name = request.json['identity']
-    app.logger.info(name)
     if r.sismember('identities', name):
         return 'already in the gallery'
     else:
@@ -117,7 +138,6 @@ def add_identity():
 @app.route('/api/delete_identity', methods=['POST'])
 def delete_identity():
     name = request.json['identity']
-    app.logger.info(f'{name} identity')
     if r.sismember('identities', name):
         with r.pipeline() as pipe:
             r.srem('identities', name)
@@ -126,3 +146,12 @@ def delete_identity():
     path = Path(data_path, name)
     shutil.rmtree(path)
     return 'ok'
+
+@app.route('/api/images/<identity>')
+def images(identity):
+    files = list(r.smembers(identity))
+    return {'files': files}
+
+@app.route('/api/get_image/<identity>/<file>')
+def get_image(identity, file):
+    return send_file(Path(data_path, identity, file).with_suffix('.jpeg'), mimetype='image/jpeg')

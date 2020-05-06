@@ -10,9 +10,9 @@ import Row from 'react-bootstrap/Row';
 
 function NameDropdown(props) {
     const identities = props.identities;
-    return (<Dropdown>
-        <Dropdown.Toggle variant="success" id="dropdown-basic">
-            Dropdown Button
+    return (<Dropdown >
+        <Dropdown.Toggle block variant="success" id="dropdown-basic">
+            {props.current_id}
         </Dropdown.Toggle>
         <DropdownMenu>
             {identities.map(option => (

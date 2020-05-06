@@ -2,14 +2,15 @@ import torch
 from facenet_pytorch.models.mtcnn import fixed_image_standardization
 from facenet_pytorch.models.utils.detect_face import extract_face
 import numpy as np
+from torchvision.datasets import ImageFolder
 
 from PIL import Image, ImageDraw
 
-def draw_boxes(image, boxes):
+def draw_boxes(image, boxes, outline=(0, 255, 0), width=3):
     im_draw = image.copy()
     draw = ImageDraw.Draw(im_draw)
     for box in boxes:
-        draw.rectangle(box.tolist(), outline=(255, 0, 0), width=6)
+        draw.rectangle(box.tolist(), outline=outline, width=width)
     return im_draw
 
 
@@ -57,11 +58,15 @@ def align_image(image, mtcnn):
     return faces, boxes
 
 
+
+
+
+
 def populate_redis(r, data_path):
     with r.pipeline() as pipe:
         for dir in data_path.iterdir():
             r.sadd('identities', dir.stem)
             for file in dir.iterdir():
-                r.sadd(dir.stem, file.as_posix())
+                r.sadd(dir.stem, file.stem)
 
         pipe.execute()

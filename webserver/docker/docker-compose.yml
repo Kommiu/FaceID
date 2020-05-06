@@ -1,5 +1,13 @@
 version: "3.8"
 services:
+  init:
+    image: test
+    command: python init.py -i /home/kommiu/init -o /home/kommiu/app/data
+    volumes:
+      - "../:/home/kommiu/app"
+      - "../../5-celeb/:/home/kommiu/init"
+    depends_on:
+      - redis
   frontend:
     image: test
     command: yarn start
@@ -10,6 +18,8 @@ services:
     stdin_open: true
     networks:
       - default
+    depends_on:
+      - backend
   backend:
     image: test
     command: flask run -h 0.0.0.0 --no-debugger
@@ -21,6 +31,8 @@ services:
       - "5000:5000"
     networks:
       - default
+    depends_on:
+      - init
   redis:
     image: "redis:alpine"
     networks:
