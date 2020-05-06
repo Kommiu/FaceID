@@ -27,12 +27,13 @@ if __name__ == '__main__':
 
 
     logging.info('Connecting to Redis')
-    r = redis.StrictRedis(
+    r = redis.Redis(
         host='redis',
         port=6379,
-        charset='utf-8',
-        decode_responses=True,
+        # charset='utf-8',
+        # decode_responses=True,
     )
+    r.flushall()
     redis_storage = RedisStorage(r)
 
     logging.info('Configuring NearPy')
@@ -40,7 +41,7 @@ if __name__ == '__main__':
     config = redis_storage.load_hash_configuration('MyHash')
     if config is None:
         # Config is not existing, create hash from scratch, with 10 projections
-        lshash = RandomBinaryProjections('MyHash', 10)
+        lshash = RandomBinaryProjections('MyHash', 50)
     else:
         # Config is existing, create hash with None parameters
         lshash = RandomBinaryProjections(None, None)
@@ -53,6 +54,8 @@ if __name__ == '__main__':
     # buckets.
     dimension = 512
     engine = Engine(dimension, lshashes=[lshash], storage=redis_storage)
+    redis_storage.store_hash_configuration(lshash)
+
 
     # Models:
     logging.info('Loading models')

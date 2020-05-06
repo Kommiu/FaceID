@@ -1,7 +1,10 @@
+from io import BytesIO
+
 import torch
 from facenet_pytorch.models.mtcnn import fixed_image_standardization
 from facenet_pytorch.models.utils.detect_face import extract_face
 import numpy as np
+from flask import send_file
 from torchvision.datasets import ImageFolder
 
 from PIL import Image, ImageDraw
@@ -70,3 +73,10 @@ def populate_redis(r, data_path):
                 r.sadd(dir.stem, file.stem)
 
         pipe.execute()
+
+
+def serve_pil_image(pil_img):
+    img_io = BytesIO()
+    pil_img.save(img_io, 'JPEG', quality=70)
+    img_io.seek(0)
+    return send_file(img_io, mimetype='image/jpeg')

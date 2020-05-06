@@ -1,5 +1,4 @@
 from pathlib import Path
-import numpy as np
 from flask import Flask, request
 import redis
 from werkzeug.utils import secure_filename
@@ -7,15 +6,14 @@ from nearpy import Engine
 from nearpy.hashes import RandomBinaryProjections
 from nearpy.storage import RedisStorage
 from PIL import Image
-from io import BytesIO
 from facenet_pytorch import InceptionResnetV1, MTCNN
 import torch
 import torchvision.transforms as transforms
 # dimension = 500
-from .utils import align_image, draw_boxes, populate_redis
+from .utils import align_image, draw_boxes, serve_pil_image
 
 from .discriminator import Discriminator
-from flask import send_file, jsonify, send_from_directory
+from flask import send_file, jsonify
 from io import BytesIO
 import shutil
 
@@ -42,21 +40,18 @@ transform = transforms.Compose([
 
 dimension = 512
 
-r = redis.StrictRedis(
+r = redis.Redis(
     host='redis',
     port=6379,
-    charset='utf-8',
-    decode_responses=True,
+    # charset='utf-8',
+    # decode_responses=True,
 )
-r.flushdb()
-populate_redis(r, data_path)
 redis_storage = RedisStorage(r)
-
 # Get hash config from redis
 config = redis_storage.load_hash_configuration('MyHash')
 if config is None:
     # Config is not existing, create hash from scratch, with 10 projections
-    lshash = RandomBinaryProjections('MyHash', 10)
+    lshash = RandomBinaryProjections('MyHash', 50)
 else:
     # Config is existing, create hash with None parameters
     lshash = RandomBinaryProjections(None, None)
@@ -68,13 +63,7 @@ else:
 # using the configuration loaded from redis. Use redis storage to store
 # buckets.
 engine = Engine(dimension, lshashes=[lshash], storage=redis_storage)
-
-def serve_pil_image(pil_img):
-    img_io = BytesIO()
-    pil_img.save(img_io, 'JPEG', quality=70)
-    img_io.seek(0)
-    return send_file(img_io, mimetype='image/jpeg')
-
+redis_storage.store_hash_configuration(lshash)
 
 app = Flask(__name__)
 
@@ -86,7 +75,7 @@ def index():
 def get_person_list():
     persons = r.smembers('identities')
     app.logger.info(persons)
-    return {'identities': list(persons)}
+    return {'identities': [name.decode("utf-8") for name in persons]}
 
 
 @app.route('/api/upload_image', methods=['POST'])
@@ -116,7 +105,8 @@ def upload_image():
             embedding = resnet(face.unsqueeze(dim=0)).detach().cpu().numpy()
         boxed_image = draw_boxes(im, [box])
 
-        engine.store_vector(embedding.reshape(dimension, -1), 1)
+        app.logger.info(embedding)
+        engine.store_vector(embedding.reshape(dimension, -1), current_id)
         im_path = Path(data_path, current_id, filename).with_suffix('.jpeg')
         r.sadd(current_id, im_path.name)
         boxed_image.save(im_path)
@@ -149,9 +139,48 @@ def delete_identity():
 
 @app.route('/api/images/<identity>')
 def images(identity):
-    files = list(r.smembers(identity))
+    files = [file.decode("utf-8") for file in r.smembers(identity)]
     return {'files': files}
 
 @app.route('/api/get_image/<identity>/<file>')
 def get_image(identity, file):
     return send_file(Path(data_path, identity, file).with_suffix('.jpeg'), mimetype='image/jpeg')
+
+@app.route('/api/detect_face', methods=['POST'])
+def detect_face():
+    file = request.files['file']
+    im = Image.open(BytesIO(file.read()))
+    app.logger.info(f'image size: {im.size}')
+    faces, boxes = align_image(im, mtcnn)
+    if faces.shape[0] > 1:
+        app.logger.warning('multiple faces')
+        return 'FUQ'
+
+    face = faces[0]
+    box = boxes[0]
+
+    if face is None:
+        return 0
+    face2disc = transform(face).unsqueeze(dim=0)
+
+    with torch.no_grad():
+        score = discriminator(face2disc).item()
+    app.logger.info('Discriminator score:', score)
+    if score >= 0.8:
+        with torch.no_grad():
+            embedding = resnet(face.unsqueeze(dim=0)).detach().cpu().numpy()
+        boxed_image = draw_boxes(im, [box])
+        N = engine.neighbours(embedding.reshape(dimension, -1))
+        app.logger.info(N)
+        if len(N) > 0:
+            cls = N[0][1]
+            dist = N[0][2]
+        else:
+            cls = dist = 'Unknown'
+    else:
+        boxed_image = draw_boxes(im, [box], (255, 0, 0))
+        cls = 'Out of sample'
+    response = serve_pil_image(boxed_image)
+    response.headers.add('X-Extra-Info-JSON',  cls)
+    app.logger.info(response.headers.get('X-Extra-Info-JSON'))
+    return response
